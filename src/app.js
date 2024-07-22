@@ -12,49 +12,62 @@ const connectionString = process.env.DATABASE_URL || 'mongodb.net/testEnviroment
 const [, db] = connectionString.match(/mongodb.net\/(.*)$/);
 
 
-app.get('/udp', (req, res) => {
-    const socket = dgram.createSocket('udp4');
+app.get('/udp', async (req, res) => {
+    function udpWork(successCallback, errorCallback) {
+        const socket = dgram.createSocket('udp4');
+        const response = {
+            ['log-listening']: [],
+            ['log-error']: [],
+            ['log-message']: [],
+        }
 
-    const response = {
-        ['log-listening']: [],
-        ['log-error']: [],
-        ['log-message']: [],
+        socket.on('listening', () => {
+            const { address, port } = socket.address();
+            response['log-listening'].push(`Listening for UDP packets at container@${address}@${port}`);
+            response['log-listening'].push(`Remote tcp/http packets comming from@${req.socket.remoteAddress}@${req.socket.remotePort}`);
+            response['log-listening'].push(`Local tcp/http packets comming from@${req.socket.localAddress}@${req.socket.localPort}`);
+            successCallback(response)
+        });
+
+        socket.on('error', (err) => {
+            response.push(`UDP error@${err.stack}`);
+            errorCallback(response)
+        });
+
+        socket.on('message', async (msg, rinfo) => {
+            let client = null;
+            try {
+                client = new MongoClient(connectionString);
+                const database = client.db(db);
+                const records = database.collection('servers');
+                const address = rinfo.address;
+                const port = rinfo.port;
+                const toInsert = { address, port };
+                const { insertedId } = await records.insertOne(toInsert);
+            } finally {
+                await client.close();
+            }
+            response.push(`Received on socket@${msg.toString()}@${rinfo.address}@${rinfo.port}@${rinfo.family}@${rinfo.size}`)
+        });
+
+        socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
+        socket.send("server punching that hole remote", req.socket.remotePort, req.socket.remoteAddress);
+        socket.send("server punching that hole remote again", req.socket.remotePort, req.socket.remoteAddress);
+        socket.send("server punching that hole local", req.socket.localPort, req.socket.localAddress);
+        socket.send("server punching that hole local again", req.socket.localPort, req.socket.localAddress);
     }
 
-    socket.on('listening', () => {
-        const { address, port } = socket.address();
-        response['log-listening'].push(`Listening for UDP packets at container@${address}@${port}`);
-        response['log-listening'].push(`Remote tcp/http packets comming from@${req.socket.remoteAddress}@${req.socket.remotePort}`);
-        response['log-listening'].push(`Local tcp/http packets comming from@${req.socket.localAddress}@${req.socket.localPort}`);
+    const waitedResp = new Promise((resolve, reject) => {
+        udpWork((successResponse) => {
+            resolve(successResponse);
+        }, (errorResponse) => {
+            reject(errorResponse);
+        });
     });
 
-    socket.on('error', (err) => {
-        response.push(`UDP error@${err.stack}`);
-    });
+    await waitedResp;
 
-    socket.on('message', async (msg, rinfo) => {
-        let client = null;
-        try {
-            client = new MongoClient(connectionString);
-            const database = client.db(db);
-            const records = database.collection('servers');
-            const address = rinfo.address;
-            const port = rinfo.port;
-            const toInsert = { address, port };
-            const { insertedId } = await records.insertOne(toInsert);
-        } finally {
-            await client.close();
-        }
-        response.push(`Received on socket@${msg.toString()}@${rinfo.address}@${rinfo.port}@${rinfo.family}@${rinfo.size}`)
-    });
-
-    socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
-    socket.send("server punching that hole remote", req.socket.remotePort, req.socket.remoteAddress);
-    socket.send("server punching that hole remote again", req.socket.remotePort, req.socket.remoteAddress);
-    socket.send("server punching that hole local", req.socket.localPort, req.socket.localAddress);
-    socket.send("server punching that hole local again", req.socket.localPort, req.socket.localAddress);
-
-    return res.status(200).json(response);
+    return res.status(200).json(waitedResp);
 });
 
 app.get('/ip', (req, res) => {
