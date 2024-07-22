@@ -30,6 +30,7 @@ app.get('/udp', async (req, res) => {
 
         socket.on('error', (err) => {
             response['log-error'].push(`UDP error@${err.stack}`);
+            socket.close()
             errorCallback(response)
         });
 
@@ -57,8 +58,9 @@ app.get('/udp', async (req, res) => {
 
         setTimeout(function () {
             response['log-error'].push('time out');
+            socket.close()
             successCallback(response);
-        }, 28);
+        }, parseInt(req.query.time) || 1000);
     }
 
     const waitedResp = new Promise((resolve, reject) => {
@@ -69,9 +71,9 @@ app.get('/udp', async (req, res) => {
         });
     });
 
-    await waitedResp;
+    const resp = await waitedResp;
 
-    return res.status(200).json(waitedResp);
+    return res.status(200).json(resp);
 });
 
 app.get('/ip', (req, res) => {
