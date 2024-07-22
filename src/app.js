@@ -49,10 +49,10 @@ app.get('/udp', (req, res) => {
     });
 
     socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
-    socket.send("server punching that hole remote", req.socket.remoteAddress, req.socket.remotePort);
-    socket.send("server punching that hole remote again", req.socket.remoteAddress, req.socket.remotePort);
-    socket.send("server punching that hole local", req.socket.localAddress, req.socket.localPort);
-    socket.send("server punching that hole local again", req.socket.localAddress, req.socket.localPort);
+    socket.send("server punching that hole remote", req.socket.remotePort, req.socket.remoteAddress);
+    socket.send("server punching that hole remote again", req.socket.remotePort, req.socket.remoteAddress);
+    socket.send("server punching that hole local", req.socket.localPort, req.socket.localAddress);
+    socket.send("server punching that hole local again", req.socket.localPort, req.socket.localAddress);
 
     return res.status(200).json(response);
 });
