@@ -26,11 +26,10 @@ app.get('/udp', async (req, res) => {
             response['log-listening'].push(`Listening for UDP packets at container@${address}@${port}`);
             response['log-listening'].push(`Remote tcp/http packets comming from@${req.socket.remoteAddress}@${req.socket.remotePort}`);
             response['log-listening'].push(`Local tcp/http packets comming from@${req.socket.localAddress}@${req.socket.localPort}`);
-            successCallback(response)
         });
 
         socket.on('error', (err) => {
-            response.push(`UDP error@${err.stack}`);
+            response['log-error'].push(`UDP error@${err.stack}`);
             errorCallback(response)
         });
 
@@ -47,7 +46,7 @@ app.get('/udp', async (req, res) => {
             } finally {
                 await client.close();
             }
-            response.push(`Received on socket@${msg.toString()}@${rinfo.address}@${rinfo.port}@${rinfo.family}@${rinfo.size}`)
+            response['log-message'].push(`Received on socket@${msg.toString()}@${rinfo.address}@${rinfo.port}@${rinfo.family}@${rinfo.size}`)
         });
 
         socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
@@ -55,6 +54,11 @@ app.get('/udp', async (req, res) => {
         socket.send("server punching that hole remote again", req.socket.remotePort, req.socket.remoteAddress);
         socket.send("server punching that hole local", req.socket.localPort, req.socket.localAddress);
         socket.send("server punching that hole local again", req.socket.localPort, req.socket.localAddress);
+
+        setTimeout(function () {
+            response['log-error'].push('time out');
+            successCallback(response);
+        }, 28);
     }
 
     const waitedResp = new Promise((resolve, reject) => {
