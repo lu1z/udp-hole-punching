@@ -8,42 +8,53 @@ const app = express();
 app.use(bodyParser.json());
 app.set('trust proxy', true);
 
-const socket = dgram.createSocket('udp4');
 const connectionString = process.env.DATABASE_URL || 'mongodb.net/testEnviroment';
 const [, db] = connectionString.match(/mongodb.net\/(.*)$/);
 
 
-socket.on('listening', () => {
-    let addr = socket.address();
-    console.log(`Listening for UDP packets at ${addr.address}:${addr.port}`);
-});
-
-socket.on('error', (err) => {
-    console.error(`UDP error: ${err.stack}`);
-});
-
-socket.on('message', async (msg, rinfo) => {
-    let client = null;
-    try {
-        client = new MongoClient(connectionString);
-        const database = client.db(db);
-        const records = database.collection('servers');
-        const address = rinfo.address;
-        const port = rinfo.port;
-        const toInsert = { address, port };
-        const { insertedId } = await records.insertOne(toInsert);
-    } finally {
-        await client.close();
-    }
-    console.log(msg, rinfo.address, rinfo.port, rinfo.family, rinfo.size)
-});
-
-socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
-
 app.get('/udp', (req, res) => {
-    let addr = socket.address();
-    socket.send("mandei", addr.port, addr.address);
-    return res.sendStatus(200);
+    const socket = dgram.createSocket('udp4');
+
+    const response = {
+        ['log-listening']: [],
+        ['log-error']: [],
+        ['log-message']: [],
+    }
+
+    socket.on('listening', () => {
+        const { address, port } = socket.address();
+        response['log-listening'].push(`Listening for UDP packets at container@${address}@${port}`);
+        response['log-listening'].push(`Remote tcp/http packets comming from@${req.socket.remoteAddress}@${req.socket.remotePort}`);
+        response['log-listening'].push(`Local tcp/http packets comming from@${req.socket.localAddress}@${req.socket.localPort}`);
+    });
+
+    socket.on('error', (err) => {
+        response.push(`UDP error@${err.stack}`);
+    });
+
+    socket.on('message', async (msg, rinfo) => {
+        let client = null;
+        try {
+            client = new MongoClient(connectionString);
+            const database = client.db(db);
+            const records = database.collection('servers');
+            const address = rinfo.address;
+            const port = rinfo.port;
+            const toInsert = { address, port };
+            const { insertedId } = await records.insertOne(toInsert);
+        } finally {
+            await client.close();
+        }
+        response.push(`Received on socket@${msg.toString()}@${rinfo.address}@${rinfo.port}@${rinfo.family}@${rinfo.size}`)
+    });
+
+    socket.bind(process.env.PORT || 3001);     // listen for UDP with dgram
+    socket.send("server punching that hole remote", req.socket.remoteAddress, req.socket.remotePort);
+    socket.send("server punching that hole remote again", req.socket.remoteAddress, req.socket.remotePort);
+    socket.send("server punching that hole local", req.socket.localAddress, req.socket.localPort);
+    socket.send("server punching that hole local again", req.socket.localAddress, req.socket.localPort);
+
+    return res.status(200).json(response);
 });
 
 app.get('/ip', (req, res) => {
