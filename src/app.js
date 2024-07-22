@@ -14,7 +14,7 @@ const [, db] = connectionString.match(/mongodb.net\/(.*)$/);
 
 app.get('/udp', async (req, res) => {
     function udpWork(successCallback, errorCallback) {
-        const socket = dgram.createSocket('udp4');
+        const socket = dgram.createSocket('udp6');
         const response = {
             ['log-listening']: [],
             ['log-error']: [],
