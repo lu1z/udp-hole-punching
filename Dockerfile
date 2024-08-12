@@ -2,7 +2,7 @@ FROM node:latest
 
 WORKDIR /app
 
-COPY ./localListener.js ./app/localListener.js
+COPY localListener.js localListener.js
 # COPY package-lock.json package-lock.json
 # ADD node_modules.tar.gz .
 
@@ -10,7 +10,7 @@ COPY ./localListener.js ./app/localListener.js
 
 # COPY /src ./src
 
-EXPOSE 3001
+EXPOSE 3001/udp
 
 ENTRYPOINT ["node", "localListener.js", "3001"]
 CMD ["30000"]
