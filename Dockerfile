@@ -1,8 +1,8 @@
 FROM node:latest
 
-WORKDIR /kaniko/buildcontext/
+# WORKDIR /kaniko/buildcontext/
 
-COPY localListener.js localListener.js
+COPY /kaniko/buildcontext/localListener.js /kaniko/buildcontext/localListener.js
 # COPY package-lock.json package-lock.json
 # ADD node_modules.tar.gz .
 
