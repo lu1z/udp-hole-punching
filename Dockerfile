@@ -1,6 +1,6 @@
 FROM node:latest
 
-# WORKDIR /app
+WORKDIR /kaniko/buildcontext/
 
 COPY localListener.js localListener.js
 # COPY package-lock.json package-lock.json
